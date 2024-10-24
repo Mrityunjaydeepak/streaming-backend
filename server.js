@@ -1,5 +1,3 @@
-// server.js
-
 // Load environment variables from .env file
 require('dotenv').config();
 
@@ -26,11 +24,6 @@ const APP_CERTIFICATE = process.env.APP_CERTIFICATE;
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN;
 const MONGODB_URI = process.env.MONGODB_URI;
 
-// Debugging Logs (Remove or adjust in Production)
-console.log('APP_ID:', APP_ID);
-console.log('APP_CERTIFICATE Loaded:', APP_CERTIFICATE ? 'Yes' : 'No');
-console.log('MONGODB_URI:', MONGODB_URI ? 'Provided' : 'Missing');
-
 // Validate essential environment variables
 if (!APP_ID || !APP_CERTIFICATE || !MONGODB_URI || !ALLOWED_ORIGIN) {
   console.error('Error: Missing essential environment variables. Please check your .env file.');
@@ -38,10 +31,11 @@ if (!APP_ID || !APP_CERTIFICATE || !MONGODB_URI || !ALLOWED_ORIGIN) {
 }
 
 // Connect to MongoDB
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose
+  .connect(MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
   .then(() => console.log('Connected to MongoDB successfully.'))
   .catch((err) => {
     console.error('MongoDB connection error:', err);
@@ -52,11 +46,13 @@ mongoose.connect(MONGODB_URI, {
 app.use(express.json());
 
 // Configure CORS
-app.use(cors({
-  origin: ALLOWED_ORIGIN, // Allow only the specified origin
-  methods: ['POST', 'GET', 'PATCH', 'DELETE'], // Allow necessary HTTP methods
-  allowedHeaders: ['Content-Type'], // Allow only Content-Type header
-}));
+app.use(
+  cors({
+    origin: ALLOWED_ORIGIN, // Allow only the specified origin
+    methods: ['POST', 'GET', 'PATCH', 'DELETE'], // Allow necessary HTTP methods
+    allowedHeaders: ['Content-Type'], // Allow only Content-Type header
+  })
+);
 
 // Health Check Endpoint
 app.get('/', (req, res) => {
@@ -64,120 +60,121 @@ app.get('/', (req, res) => {
 });
 
 // =========================
-// Existing Endpoints
+// Existing API Endpoints
 // =========================
+
 /**
  * @route   PATCH /channel/:channelName/token
  * @desc    Update the channel with a newly generated token
  * @access  Public
  */
-app.patch('/channel/:channelName/token', 
-    [
-      param('channelName').isString().notEmpty(),
-      body('token').isString().notEmpty(),
-    ], 
-    async (req, res) => {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        console.warn('Patch Token Request Failed:', errors.array());
-        return res.status(400).json({ errors: errors.array() });
-      }
-  
-      try {
-        const { channelName } = req.params;
-        const { token } = req.body;
-  
-        // Find the channel in the database
-        const channel = await Channel.findOne({ channelName });
-  
-        if (!channel) {
-          console.warn(`Patch Token Failed: Channel ${channelName} does not exist.`);
-          return res.status(404).json({ error: 'Channel not found.' });
-        }
-  
-        // Update the token for the channel
-        channel.token = token;
-        await channel.save();
-  
-        console.log(`Token updated for Channel: ${channelName}`);
-        return res.status(200).json({ message: 'Token updated successfully.' });
-      } catch (error) {
-        console.error('Error in PATCH /channel/:channelName/token:', error);
-        return res.status(500).json({ error: 'Internal server error.' });
-      }
+app.patch(
+  '/channel/:channelName/token',
+  [param('channelName').isString().notEmpty(), body('token').isString().notEmpty()],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.warn('Patch Token Request Failed:', errors.array());
+      return res.status(400).json({ errors: errors.array() });
     }
-  );
-  
+
+    try {
+      const { channelName } = req.params;
+      const { token } = req.body;
+
+      // Find the channel in the database
+      const channel = await Channel.findOne({ channelName });
+
+      if (!channel) {
+        console.warn(`Patch Token Failed: Channel ${channelName} does not exist.`);
+        return res.status(404).json({ error: 'Channel not found.' });
+      }
+
+      // Update the token for the channel
+      channel.token = token;
+      await channel.save();
+
+      console.log(`Token updated for Channel: ${channelName}`);
+      return res.status(200).json({ message: 'Token updated successfully.' });
+    } catch (error) {
+      console.error('Error in PATCH /channel/:channelName/token:', error);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
+  }
+);
+
 /**
  * @route   POST /create-channel
  * @desc    Create or update a channel with channelName and uid
- * @access  Public (Modify access as needed)
+ * @access  Public
  */
-app.post('/create-channel', 
-    [
-      body('channelName').isString().notEmpty(),
-      body('uid').isInt(),
-    ],
-    async (req, res) => {
-      const { channelName, uid } = req.body;
-  
-      try {
-        // Check if the channel already exists
-        let channel = await Channel.findOne({ channelName });
-  
-        if (channel) {
-          // If the channel exists, return the existing token
-          return res.status(200).json({ 
-            message: 'Channel already exists.', 
-            token: channel.token 
-          });
-        }
-  
-        // If channel doesn't exist, create a new one
-        const role = RtcRole.PUBLISHER;
-        const expireTime = 3600; // 1 hour
-        const currentTimestamp = Math.floor(Date.now() / 1000);
-        const privilegeExpireTime = currentTimestamp + expireTime;
-  
-        const token = RtcTokenBuilder.buildTokenWithUid(
-          APP_ID,
-          APP_CERTIFICATE,
-          channelName,
-          uid,
-          role,
-          privilegeExpireTime
-        );
-  
-        channel = new Channel({
-          channelName,
-          uid,
-          token,
-        });
-  
-        await channel.save();
-  
-        return res.status(201).json({ 
-          message: 'Channel created successfully.', 
-          token 
-        });
-  
-      } catch (error) {
-        console.error('Error in /create-channel:', error);
-        return res.status(500).json({ error: 'Internal server error.' });
-      }
-    }
-  );
+app.post(
+  '/create-channel',
+  [body('channelName').isString().notEmpty(), body('uid').isInt()],
+  async (req, res) => {
+    const { channelName, uid } = req.body;
 
+    try {
+      // Check if the channel already exists
+      let channel = await Channel.findOne({ channelName });
+
+      if (channel) {
+        // If the channel exists, return the existing token
+        return res.status(200).json({
+          message: 'Channel already exists.',
+          token: channel.token,
+        });
+      }
+
+      // If channel doesn't exist, create a new one
+      const role = RtcRole.PUBLISHER;
+      const expireTime = 3600; // 1 hour
+      const currentTimestamp = Math.floor(Date.now() / 1000);
+      const privilegeExpireTime = currentTimestamp + expireTime;
+
+      const token = RtcTokenBuilder.buildTokenWithUid(
+        APP_ID,
+        APP_CERTIFICATE,
+        channelName,
+        uid,
+        role,
+        privilegeExpireTime
+      );
+
+      channel = new Channel({
+        channelName,
+        uid,
+        token,
+      });
+
+      await channel.save();
+
+      return res.status(201).json({
+        message: 'Channel created successfully.',
+        token,
+      });
+    } catch (error) {
+      console.error('Error in /create-channel:', error);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
+  }
+);
 
 /**
  * @route   GET /token
  * @desc    Generate or retrieve Agora RTC Token for a channel
- * @access  Public (Modify access as needed)
+ * @access  Public
  */
-app.get('/token',
+app.get(
+  '/token',
   [
-    query('channelName').isString().notEmpty().withMessage('channelName query parameter is required and must be a non-empty string'),
-    query('uid').isInt({ min: 1 }).withMessage('uid query parameter is required and must be a positive integer'),
+    query('channelName')
+      .isString()
+      .notEmpty()
+      .withMessage('channelName query parameter is required and must be a non-empty string'),
+    query('uid')
+      .isInt({ min: 1 })
+      .withMessage('uid query parameter is required and must be a positive integer'),
   ],
   async (req, res) => {
     // Validate the request
@@ -238,11 +235,15 @@ app.get('/token',
 /**
  * @route   GET /channel/:channelName
  * @desc    Fetch channel details along with associated users
- * @access  Public (Modify access as needed)
+ * @access  Public
  */
-app.get('/channel/:channelName',
+app.get(
+  '/channel/:channelName',
   [
-    param('channelName').isString().notEmpty().withMessage('channelName parameter must be a non-empty string'),
+    param('channelName')
+      .isString()
+      .notEmpty()
+      .withMessage('channelName parameter must be a non-empty string'),
   ],
   async (req, res) => {
     // Validate the request
@@ -283,13 +284,20 @@ app.get('/channel/:channelName',
 /**
  * @route   POST /channel/:channelName/users
  * @desc    Add a user (audience) to a specific channel
- * @access  Public (Modify access as needed)
+ * @access  Public
  */
-app.post('/channel/:channelName/users',
+app.post(
+  '/channel/:channelName/users',
   [
-    param('channelName').isString().notEmpty().withMessage('channelName parameter must be a non-empty string'),
+    param('channelName')
+      .isString()
+      .notEmpty()
+      .withMessage('channelName parameter must be a non-empty string'),
     body('name').isString().notEmpty().withMessage('name is required and must be a non-empty string'),
-    body('userID').isString().notEmpty().withMessage('userID is required and must be a non-empty string'),
+    body('userID')
+      .isString()
+      .notEmpty()
+      .withMessage('userID is required and must be a non-empty string'),
     body('profilePic').optional().isString().withMessage('profilePic must be a string if provided'),
   ],
   async (req, res) => {
@@ -341,11 +349,15 @@ app.post('/channel/:channelName/users',
 /**
  * @route   DELETE /channel/:channelName/users/:userID
  * @desc    Remove a user (audience) from a specific channel
- * @access  Public (Modify access as needed)
+ * @access  Public
  */
-app.delete('/channel/:channelName/users/:userID',
+app.delete(
+  '/channel/:channelName/users/:userID',
   [
-    param('channelName').isString().notEmpty().withMessage('channelName parameter must be a non-empty string'),
+    param('channelName')
+      .isString()
+      .notEmpty()
+      .withMessage('channelName parameter must be a non-empty string'),
     param('userID').isString().notEmpty().withMessage('userID parameter must be a non-empty string'),
   ],
   async (req, res) => {
@@ -384,11 +396,41 @@ app.delete('/channel/:channelName/users/:userID',
     }
   }
 );
+/**
+ * @route   GET /channel/:channelName/active-users-count
+ * @desc    Get the current active users count for a channel
+ * @access  Public
+ */
+app.get(
+  '/channel/:channelName/active-users-count',
+  [param('channelName').isString().notEmpty().withMessage('channelName parameter must be a non-empty string')],
+  async (req, res) => {
+    // Validate the request
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.warn('Get Active Users Count Failed:', errors.array());
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { channelName } = req.params;
+
+      // Get the active users count from channelUsers
+      const count = channelUsers[channelName] ? channelUsers[channelName].size : 0;
+
+      res.status(200).json({ activeUsersCount: count });
+    } catch (error) {
+      console.error('Error in GET /channel/:channelName/active-users-count:', error);
+      res.status(500).json({ error: 'Internal server error.' });
+    }
+  }
+);
+
 
 /**
  * @route   GET /channels
  * @desc    Retrieve a list of all channels
- * @access  Public (Modify access as needed)
+ * @access  Public
  */
 app.get('/channels', async (req, res) => {
   try {
@@ -396,7 +438,7 @@ app.get('/channels', async (req, res) => {
     const channels = await Channel.find({}, 'channelName uid createdAt').sort({ createdAt: -1 });
 
     // Map to extract channel names and other details
-    const channelList = channels.map(channel => ({
+    const channelList = channels.map((channel) => ({
       channelName: channel.channelName,
       uid: channel.uid,
       createdAt: channel.createdAt,
@@ -424,8 +466,9 @@ const io = new Server(server, {
   },
 });
 
-// Object to map socket IDs to user IDs and channel names
-const socketUserMap = {};
+// Objects to track users
+const channelUsers = {}; // Object to track active users per channel
+const socketUserMap = {}; // Map socket IDs to user info
 
 // Handle Socket.io Connections
 io.on('connection', (socket) => {
@@ -438,55 +481,70 @@ io.on('connection', (socket) => {
    */
   socket.on('joinChannel', async ({ channelName, userID }) => {
     try {
-      // Find the user in the database
-      const user = await ChannelUser.findOne({ channelName, userID });
+      // Attempt to find the user in the ChannelUser collection
+      let user = await ChannelUser.findOne({ channelName, userID });
 
       if (user) {
         // Update the user's active status to true
         user.active = true;
         await user.save();
 
-        // Join the Socket.io room for the channel
-        socket.join(channelName);
+        // Add user to active users list
+        if (!channelUsers[channelName]) {
+          channelUsers[channelName] = new Set();
+        }
+        channelUsers[channelName].add(userID);
 
         // Map socket ID to userID and channelName
         socketUserMap[socket.id] = { userID, channelName };
 
+        // Join the Socket.io room for the channel
+        socket.join(channelName);
+
         console.log(`UserID ${userID} joined channel ${channelName} and is now active.`);
-        
-        // Optionally, emit an event to notify others about the active user
-        io.to(channelName).emit('userActive', { userID, name: user.name });
+
+        // Emit events
+        socket.to(channelName).emit('userActive', { userID, name: user.name });
+        io.in(channelName).emit('activeUsersCount', channelUsers[channelName].size);
+        console.log(`Emitting activeUsersCount: ${channelUsers[channelName].size} to channel ${channelName}`);
       } else {
-        console.warn(`Socket.io: UserID ${userID} not found in channel ${channelName}.`);
-        // Optionally, emit an error to the client
-        socket.emit('error', { message: 'User not found in the channel.' });
+        // Check if the user is the host
+        const channel = await Channel.findOne({ channelName });
+        if (channel && channel.uid.toString() === userID.toString()) {
+          // The user is the host
+          // Create a temporary user object for the host
+          user = {
+            name: 'Host',
+            userID: userID,
+            channelName: channelName,
+          };
+
+          // Add host to active users list
+          if (!channelUsers[channelName]) {
+            channelUsers[channelName] = new Set();
+          }
+          channelUsers[channelName].add(userID);
+
+          // Map socket ID to userID and channelName
+          socketUserMap[socket.id] = { userID, channelName };
+
+          // Join the Socket.io room for the channel
+          socket.join(channelName);
+
+          console.log(`Host (UserID ${userID}) joined channel ${channelName} and is now active.`);
+
+          // Emit events
+          socket.to(channelName).emit('userActive', { userID, name: user.name });
+          io.in(channelName).emit('activeUsersCount', channelUsers[channelName].size);
+          console.log(`Emitting activeUsersCount: ${channelUsers[channelName].size} to channel ${channelName}`);
+        } else {
+          console.warn(`Socket.io: UserID ${userID} not found in channel ${channelName}.`);
+          // Optionally, emit an error to the client
+          socket.emit('error', { message: 'User not found in the channel.' });
+        }
       }
     } catch (error) {
       console.error('Socket.io joinChannel error:', error);
-      socket.emit('error', { message: 'Internal server error.' });
-    }
-  });
-
-  /**
-   * Event: heartbeat
-   * Payload: { channelName, userID }
-   * Description: User sends a heartbeat to indicate they are still active.
-   */
-  socket.on('heartbeat', async ({ channelName, userID }) => {
-    try {
-      const user = await ChannelUser.findOne({ channelName, userID });
-
-      if (user) {
-        // Update the user's active status to true
-        user.active = true;
-        await user.save();
-
-        console.log(`Heartbeat received: UserID ${userID} in channel ${channelName} is active.`);
-      } else {
-        console.warn(`Socket.io: Heartbeat received for non-existent UserID ${userID} in channel ${channelName}.`);
-      }
-    } catch (error) {
-      console.error('Socket.io heartbeat error:', error);
       socket.emit('error', { message: 'Internal server error.' });
     }
   });
@@ -498,26 +556,32 @@ io.on('connection', (socket) => {
    */
   socket.on('leaveChannel', async ({ channelName, userID }) => {
     try {
-      const user = await ChannelUser.findOne({ channelName, userID });
-
-      if (user) {
-        // Update the user's active status to false
-        user.active = false;
-        await user.save();
-
-        // Leave the Socket.io room
-        socket.leave(channelName);
-
-        // Remove mapping
-        delete socketUserMap[socket.id];
-
-        console.log(`UserID ${userID} left channel ${channelName} and is now inactive.`);
-        
-        // Optionally, emit an event to notify others about the inactive user
-        io.to(channelName).emit('userInactive', { userID, name: user.name });
-      } else {
-        console.warn(`Socket.io: LeaveChannel received for non-existent UserID ${userID} in channel ${channelName}.`);
+      // Remove user from active users list
+      if (channelUsers[channelName]) {
+        channelUsers[channelName].delete(userID);
+        if (channelUsers[channelName].size === 0) {
+          delete channelUsers[channelName];
+        }
       }
+
+      // Remove mapping
+      delete socketUserMap[socket.id];
+
+      // Leave the Socket.io room
+      socket.leave(channelName);
+
+      console.log(`UserID ${userID} left channel ${channelName} and is now inactive.`);
+
+      // Emit events
+      socket.to(channelName).emit('userInactive', { userID, name: `User ${userID}` });
+
+      // Emit active users count
+      if (channelUsers[channelName]) {
+        io.in(channelName).emit('activeUsersCount', channelUsers[channelName].size);
+      } else {
+        io.in(channelName).emit('activeUsersCount', 0);
+      }
+      console.log(`Emitting activeUsersCount: ${channelUsers[channelName] ? channelUsers[channelName].size : 0} to channel ${channelName}`);
     } catch (error) {
       console.error('Socket.io leaveChannel error:', error);
       socket.emit('error', { message: 'Internal server error.' });
@@ -536,25 +600,29 @@ io.on('connection', (socket) => {
     if (userInfo) {
       const { userID, channelName } = userInfo;
 
-      try {
-        const user = await ChannelUser.findOne({ channelName, userID });
-
-        if (user) {
-          // Update the user's active status to false
-          user.active = false;
-          await user.save();
-
-          console.log(`UserID ${userID} in channel ${channelName} marked as inactive due to disconnection.`);
-          
-          // Optionally, emit an event to notify others about the inactive user
-          io.to(channelName).emit('userInactive', { userID, name: user.name });
+      // Remove user from active users list
+      if (channelUsers[channelName]) {
+        channelUsers[channelName].delete(userID);
+        if (channelUsers[channelName].size === 0) {
+          delete channelUsers[channelName];
         }
-
-        // Remove mapping
-        delete socketUserMap[socket.id];
-      } catch (error) {
-        console.error('Socket.io disconnect error:', error);
       }
+
+      // Remove mapping
+      delete socketUserMap[socket.id];
+
+      console.log(`UserID ${userID} in channel ${channelName} marked as inactive due to disconnection.`);
+
+      // Emit events
+      socket.to(channelName).emit('userInactive', { userID, name: `User ${userID}` });
+
+      // Emit active users count
+      if (channelUsers[channelName]) {
+        io.in(channelName).emit('activeUsersCount', channelUsers[channelName].size);
+      } else {
+        io.in(channelName).emit('activeUsersCount', 0);
+      }
+      console.log(`Emitting activeUsersCount: ${channelUsers[channelName] ? channelUsers[channelName].size : 0} to channel ${channelName}`);
     }
   });
 });
