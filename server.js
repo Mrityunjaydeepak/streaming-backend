@@ -1,3 +1,5 @@
+// server.js
+
 // Load environment variables from .env file
 require('dotenv').config();
 
@@ -10,9 +12,10 @@ const { body, validationResult, query, param } = require('express-validator');
 const http = require('http'); // Import http to create a server instance
 const { Server } = require('socket.io'); // Import Socket.io
 
-// Import the Channel and ChannelUser models
+// Import the Channel, ChannelUser, and Chat models
 const Channel = require('./models/Channel');
 const ChannelUser = require('./models/ChannelUser');
+const Chat = require('./models/Chat'); // Import the Chat model
 
 // Initialize Express app
 const app = express();
@@ -396,6 +399,7 @@ app.delete(
     }
   }
 );
+
 /**
  * @route   GET /channel/:channelName/active-users-count
  * @desc    Get the current active users count for a channel
@@ -426,7 +430,6 @@ app.get(
   }
 );
 
-
 /**
  * @route   GET /channels
  * @desc    Retrieve a list of all channels
@@ -451,6 +454,102 @@ app.get('/channels', async (req, res) => {
   }
 });
 
+/**
+ * @route   POST /channel/:channelName/chat
+ * @desc    Send a chat message to a specific channel
+ * @access  Public
+ */
+app.post(
+  '/channel/:channelName/chat',
+  [
+    param('channelName').isString().notEmpty().withMessage('channelName parameter must be a non-empty string'),
+    body('name').isString().notEmpty().withMessage('name is required and must be a non-empty string'),
+    body('userID').isString().notEmpty().withMessage('userID is required and must be a non-empty string'),
+    body('message').isString().notEmpty().withMessage('message is required and must be a non-empty string'),
+  ],
+  async (req, res) => {
+    // Validate the request
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.warn('Send Chat Message Failed:', errors.array());
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { channelName } = req.params;
+      const { name, userID, message } = req.body;
+
+      // Check if the channel exists
+      const channel = await Channel.findOne({ channelName });
+      if (!channel) {
+        console.warn(`Send Chat Message Failed: Channel ${channelName} does not exist.`);
+        return res.status(404).json({ error: 'Channel does not exist.' });
+      }
+
+      // Optionally, verify if the user exists in the channel
+      const user = await ChannelUser.findOne({ channelName, userID });
+      if (!user && channel.uid.toString() !== userID.toString()) {
+        console.warn(`Send Chat Message Failed: UserID ${userID} not found in channel ${channelName}.`);
+        return res.status(400).json({ error: 'User does not exist in the channel.' });
+      }
+
+      // Create a new chat message
+      const newChat = new Chat({
+        channelName,
+        name,
+        userID,
+        message,
+      });
+
+      await newChat.save();
+
+      console.log(`New chat message in channel ${channelName} from ${name} (ID: ${userID}): ${message}`);
+
+      return res.status(201).json({ message: 'Chat message sent successfully.', chat: newChat });
+    } catch (error) {
+      console.error('Error in POST /channel/:channelName/chat:', error);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
+  }
+);
+
+/**
+ * @route   GET /channel/:channelName/chat
+ * @desc    Retrieve all chat messages for a specific channel
+ * @access  Public
+ */
+app.get(
+  '/channel/:channelName/chat',
+  [param('channelName').isString().notEmpty().withMessage('channelName parameter must be a non-empty string')],
+  async (req, res) => {
+    // Validate the request
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.warn('Get Chat Messages Failed:', errors.array());
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { channelName } = req.params;
+
+      // Check if the channel exists
+      const channel = await Channel.findOne({ channelName });
+      if (!channel) {
+        console.warn(`Get Chat Messages Failed: Channel ${channelName} does not exist.`);
+        return res.status(404).json({ error: 'Channel does not exist.' });
+      }
+
+      // Retrieve all chat messages for the channel, sorted by timestamp ascending
+      const chats = await Chat.find({ channelName }).sort({ timestamp: 1 });
+
+      return res.status(200).json({ chats });
+    } catch (error) {
+      console.error('Error in GET /channel/:channelName/chat:', error);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
+  }
+);
+
 // =========================
 // Socket.io Integration
 // =========================
@@ -469,6 +568,10 @@ const io = new Server(server, {
 // Objects to track users
 const channelUsers = {}; // Object to track active users per channel
 const socketUserMap = {}; // Map socket IDs to user info
+
+// =========================
+// Socket.io Event Handling
+// =========================
 
 // Handle Socket.io Connections
 io.on('connection', (socket) => {
@@ -587,6 +690,17 @@ io.on('connection', (socket) => {
       socket.emit('error', { message: 'Internal server error.' });
     }
   });
+
+  /**
+   * Removed Socket.IO Chat Functionality
+   * 
+   * The following code related to chat via Socket.IO has been removed:
+   * 
+   * - Handling 'chatMessage' event
+   * - Emitting 'newChatMessage' event
+   * 
+   * This ensures that chat functionalities are now exclusively handled via RESTful APIs.
+   */
 
   /**
    * Handle Socket Disconnection
