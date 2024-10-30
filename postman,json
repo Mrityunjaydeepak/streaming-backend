@@ -1,0 +1,238 @@
+{
+    "info": {
+      "name": "Agora APIs",
+      "_postman_id": "unique-id",
+      "description": "Collection to test Agora backend APIs",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "Health Check",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "http://localhost:5069/",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "5069",
+            "path": [""]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Create Channel",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n    \"channelName\": \"testChannel\",\n    \"uid\": 12345\n}"
+          },
+          "url": {
+            "raw": "http://localhost:5069/create-channel",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "5069",
+            "path": ["create-channel"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Get Publisher Token",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "http://localhost:5069/token?channelName=testChannel&uid=12345",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "5069",
+            "path": ["token"],
+            "query": [
+              {
+                "key": "channelName",
+                "value": "testChannel"
+              },
+              {
+                "key": "uid",
+                "value": "12345"
+              }
+            ]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Get Audience Token",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "http://localhost:5069/channel/testChannel/audience-token",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "5069",
+            "path": ["channel", "testChannel", "audience-token"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Patch Channel Token",
+        "request": {
+          "method": "PATCH",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n    \"token\": \"newTokenValue\"\n}"
+          },
+          "url": {
+            "raw": "http://localhost:5069/channel/testChannel/token",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "5069",
+            "path": ["channel", "testChannel", "token"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Get Channel Details",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "http://localhost:5069/channel/testChannel",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "5069",
+            "path": ["channel", "testChannel"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Add User to Channel",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n    \"name\": \"John Doe\",\n    \"userID\": \"user123\",\n    \"profilePic\": \"https://example.com/profile.jpg\"\n}"
+          },
+          "url": {
+            "raw": "http://localhost:5069/channel/testChannel/users",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "5069",
+            "path": ["channel", "testChannel", "users"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Delete User from Channel",
+        "request": {
+          "method": "DELETE",
+          "header": [],
+          "url": {
+            "raw": "http://localhost:5069/channel/testChannel/users/user123",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "5069",
+            "path": ["channel", "testChannel", "users", "user123"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Get Active Users Count",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "http://localhost:5069/channel/testChannel/active-users-count",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "5069",
+            "path": ["channel", "testChannel", "active-users-count"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Get All Channels",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "http://localhost:5069/channels",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "5069",
+            "path": ["channels"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Send Chat Message",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n    \"name\": \"John Doe\",\n    \"userID\": \"user123\",\n    \"message\": \"Hello, this is a test message.\"\n}"
+          },
+          "url": {
+            "raw": "http://localhost:5069/channel/testChannel/chat",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "5069",
+            "path": ["channel", "testChannel", "chat"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Get Chat Messages",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "http://localhost:5069/channel/testChannel/chat",
+            "protocol": "http",
+            "host": ["localhost"],
+            "port": "5069",
+            "path": ["channel", "testChannel", "chat"]
+          }
+        },
+        "response": []
+      }
+    ],
+    "protocolProfileBehavior": {}
+  }
+  

@@ -59,11 +59,11 @@ app.use(
 
 // Health Check Endpoint
 app.get('/', (req, res) => {
-  res.send('Agora Backend Server is running.');
+  res.send('Server is running.');
 });
 
 // =========================
-// Existing API Endpoints
+// Updated API Endpoints
 // =========================
 
 /**
@@ -122,42 +122,97 @@ app.post(
       let channel = await Channel.findOne({ channelName });
 
       if (channel) {
-        // If the channel exists, return the existing token
+        // If the channel exists, return the existing tokens
         return res.status(200).json({
           message: 'Channel already exists.',
           token: channel.token,
+          audienceToken: channel.audienceToken,
         });
       }
 
       // If channel doesn't exist, create a new one
-      const role = RtcRole.PUBLISHER;
-      const expireTime = 3600; // 1 hour
+      const expireTime = 3600; // Token expiration time in seconds (1 hour)
       const currentTimestamp = Math.floor(Date.now() / 1000);
       const privilegeExpireTime = currentTimestamp + expireTime;
 
+      // Generate publisher token
+      const publisherRole = RtcRole.PUBLISHER;
       const token = RtcTokenBuilder.buildTokenWithUid(
         APP_ID,
         APP_CERTIFICATE,
         channelName,
         uid,
-        role,
+        publisherRole,
         privilegeExpireTime
       );
 
+      // Generate audience token
+      const audienceRole = RtcRole.SUBSCRIBER;
+      const audienceUid = 0; // You can use 0 or any fixed UID for audience
+      const audienceToken = RtcTokenBuilder.buildTokenWithUid(
+        APP_ID,
+        APP_CERTIFICATE,
+        channelName,
+        audienceUid,
+        audienceRole,
+        privilegeExpireTime
+      );
+
+      // Save the channel with both tokens
       channel = new Channel({
         channelName,
         uid,
         token,
+        audienceToken,
       });
 
       await channel.save();
 
       return res.status(201).json({
         message: 'Channel created successfully.',
-        token,
+        token, // Publisher token
+        audienceToken, // Audience token
       });
     } catch (error) {
       console.error('Error in /create-channel:', error);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
+  }
+);
+
+/**
+ * @route   GET /channel/:channelName/audience-token
+ * @desc    Get the audience token for a channel
+ * @access  Public
+ */
+app.get(
+  '/channel/:channelName/audience-token',
+  [param('channelName').isString().notEmpty().withMessage('channelName parameter must be a non-empty string')],
+  async (req, res) => {
+    // Validate the request
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.warn('Get Audience Token Failed:', errors.array());
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { channelName } = req.params;
+
+      // Find the channel in the database
+      const channel = await Channel.findOne({ channelName });
+
+      if (!channel) {
+        console.warn(`Get Audience Token Failed: Channel ${channelName} does not exist.`);
+        return res.status(404).json({ error: 'Channel not found.' });
+      }
+
+      // Return the audience token
+      return res.status(200).json({
+        audienceToken: channel.audienceToken,
+      });
+    } catch (error) {
+      console.error('Error in GET /channel/:channelName/audience-token:', error);
       return res.status(500).json({ error: 'Internal server error.' });
     }
   }
@@ -272,6 +327,7 @@ app.get(
 
       res.status(200).json({
         token: channel.token,
+        audienceToken: channel.audienceToken,
         uid: channel.uid,
         createdAt: channel.createdAt,
         updatedAt: channel.updatedAt,
@@ -693,12 +749,12 @@ io.on('connection', (socket) => {
 
   /**
    * Removed Socket.IO Chat Functionality
-   * 
+   *
    * The following code related to chat via Socket.IO has been removed:
-   * 
+   *
    * - Handling 'chatMessage' event
    * - Emitting 'newChatMessage' event
-   * 
+   *
    * This ensures that chat functionalities are now exclusively handled via RESTful APIs.
    */
 
