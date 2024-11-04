@@ -131,7 +131,7 @@ app.post(
       }
 
       // If channel doesn't exist, create a new one
-      const expireTime = 3600; // Token expiration time in seconds (1 hour)
+      const expireTime = 7200; // Token expiration time in seconds (1 hour)
       const currentTimestamp = Math.floor(Date.now() / 1000);
       const privilegeExpireTime = currentTimestamp + expireTime;
 
@@ -168,7 +168,7 @@ app.post(
 
       await channel.save();
 
-      return res.status(201).json({
+      return res.status(200).json({
         message: 'Channel created successfully.',
         token, // Publisher token
         audienceToken, // Audience token
@@ -259,36 +259,50 @@ app.get(
         return res.status(400).json({ error: 'UID does not match the channel owner.' });
       }
 
-      // Define role and token expiration
-      const role = RtcRole.PUBLISHER; // Assuming the owner is a publisher
+      // Define token expiration
       const expireTime = 3600; // 1 hour in seconds
       const currentTimestamp = Math.floor(Date.now() / 1000);
       const privilegeExpireTime = currentTimestamp + expireTime;
 
-      // Generate a new token
-      const token = RtcTokenBuilder.buildTokenWithUid(
+      // Generate a new publisher token
+      const publisherRole = RtcRole.PUBLISHER; // Assuming the owner is a publisher
+      const publisherToken = RtcTokenBuilder.buildTokenWithUid(
         APP_ID,
         APP_CERTIFICATE,
         channelName,
-        uid,
-        role,
+        parseInt(uid, 10),
+        publisherRole,
         privilegeExpireTime
       );
 
-      // Update the token in the database
-      channel.token = token;
+      // Generate a new audience token
+      const audienceRole = RtcRole.SUBSCRIBER;
+      const audienceUid = 0; // You can use 0 or any fixed UID for audience
+      const audienceToken = RtcTokenBuilder.buildTokenWithUid(
+        APP_ID,
+        APP_CERTIFICATE,
+        channelName,
+        audienceUid,
+        audienceRole,
+        privilegeExpireTime
+      );
+
+      // Update both tokens in the database
+      channel.token = publisherToken;
+      channel.audienceToken = audienceToken;
       await channel.save();
 
-      console.log(`Token regenerated for Channel: ${channelName}, UID: ${uid}`);
+      console.log(`Tokens regenerated for Channel: ${channelName}, UID: ${uid}`);
 
-      // Respond with the new token
-      return res.status(200).json({ token });
+      // Respond with the new tokens
+      return res.status(200).json({ token: publisherToken, audienceToken: audienceToken });
     } catch (error) {
       console.error('Error in /token:', error);
       return res.status(500).json({ error: 'Internal server error.' });
     }
   }
 );
+
 
 /**
  * @route   GET /channel/:channelName
