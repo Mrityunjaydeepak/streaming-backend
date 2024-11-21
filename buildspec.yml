@@ -1,0 +1,27 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 16 
+    command:
+      - apt -y update
+      - apt -y install awscli
+
+  build:
+    on-failure: ABORT
+    commands:
+      - echo "Build started on `date`"
+      - aws secretsmanager get-secret-value --secret-id uat/StreamingBackend --query SecretString --output text | tee .env
+      - echo Building the Node.js project...
+      - npm install
+      - npm run 
+
+artifacts:
+  files:
+    - '**/*'
+  discard-paths: no
+
+cache:
+  paths:
+    - 'node_modules/**/*'
