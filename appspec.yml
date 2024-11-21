@@ -1,0 +1,11 @@
+version: 0.0
+os: linux
+files:
+  - source: /
+    destination: /var/www/copartner/StreamingBackend
+    overwrite: true
+file_exists_behavior: OVERWRITE
+hooks:
+  AfterInstall:
+    - location: deployment-script.sh
+      timeout: 180
